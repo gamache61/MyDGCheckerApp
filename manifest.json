@@ -1,0 +1,26 @@
+{
+  "name": "MyDGCheckerApp",
+  "short_name": "DG Checker",
+  "description": "Practice checking TDG shipping documents, placarding trailers and answering dangerous goods rules questions for road transport in Canada.",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#10161d",
+  "theme_color": "#10161d",
+  "lang": "en-CA",
+  "dir": "ltr",
+  "categories": ["education", "productivity", "utilities"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "screenshots/screenshot1.png", "sizes": "1920x860", "type": "image/png", "form_factor": "wide", "label": "Home screen with Practice and Test modes" },
+    { "src": "screenshots/screenshot2.png", "sizes": "1920x860", "type": "image/png", "form_factor": "wide", "label": "Checking a TDG shipping document for errors" },
+    { "src": "screenshots/screenshot3.png", "sizes": "1920x860", "type": "image/png", "form_factor": "wide", "label": "Choosing the placards the trailer needs" }
+  ]
+}

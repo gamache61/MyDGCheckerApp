@@ -1,0 +1,778 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>DG Paperwork Checker</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#10161d">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="DG Checker">
+<meta name="format-detection" content="telephone=no">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: one working screen — the paper shipping document on the left, the step panel on the right; stacks on phones. */
+:root{
+  color-scheme:dark;
+  --bg:#10161d;--panel:#18212b;--panel2:#1f2a36;--line:#2c3947;--text:#e7edf2;--muted:#93a3b3;
+  --amber:#f5a623;--amber2:#ffcc66;--ok:#3ecf6e;--bad:#ff5a52;--info:#5aa9ff;
+  --paper:#f7f5ef;--ink:#1d232a;--rule:#8b9096;--label:#5b6570;--zone:rgba(245,166,35,.16);
+  --f-display:'Barlow Condensed','Arial Narrow',Arial,sans-serif;
+  --f-body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-text-size-adjust:100%}
+button{font-family:inherit;color:inherit}
+button:focus-visible,.z:focus-visible,.tile:focus-visible{outline:2px solid var(--amber2);outline-offset:2px}
+.hidden{display:none!important}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:max(16px,env(safe-area-inset-left)) max(16px,env(safe-area-inset-right));padding-block:max(14px,env(safe-area-inset-top)) max(40px,env(safe-area-inset-bottom))}
+
+/* top bar */
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-block:6px 14px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.brand{font:700 13px var(--f-display);letter-spacing:.22em;color:var(--amber)}
+.appname{font:700 22px var(--f-display);letter-spacing:.02em}
+.bar .sp{flex:1}
+.pill{font:600 13px var(--f-display);letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:5px 12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pill b{color:var(--text)}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 16px;font:600 16px var(--f-display);letter-spacing:.07em;text-transform:uppercase;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--amber);border-color:var(--amber);color:#1b1205}
+.btn.primary:hover{background:var(--amber2);border-color:var(--amber2)}
+.btn.small{padding:7px 12px;font-size:14px}
+.btn:disabled{opacity:.45;cursor:default}
+
+/* home */
+.home{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:28px;align-items:start}
+.home h1{font:700 52px/1 var(--f-display);text-wrap:balance;margin:6px 0 12px}
+.home .lead{font-size:17px;color:var(--muted);max-width:60ch;margin-bottom:22px}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
+.mode{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.mode:hover{border-color:var(--amber)}
+.mode b{font:700 24px var(--f-display);letter-spacing:.02em}
+.mode span{color:var(--muted);font-size:14px}
+.mode i{font-style:normal;font:600 13px var(--f-display);letter-spacing:.12em;color:var(--amber2);text-transform:uppercase;margin-top:auto;padding-top:6px}
+.steps3{display:grid;gap:10px}
+.s3{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start}
+.s3 em{font:700 22px var(--f-display);font-style:normal;color:var(--amber);line-height:1.2}
+.s3 b{display:block;font:600 17px var(--f-display);letter-spacing:.03em}
+.s3 span{color:var(--muted);font-size:14px}
+.note{margin-top:20px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;max-width:70ch}
+.placardRow{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;padding:18px;background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.placardRow svg{width:74px;height:74px}
+
+/* game layout */
+.game{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,1fr);gap:20px;align-items:start}
+.stepper{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.st{font:600 13px var(--f-display);letter-spacing:.12em;text-transform:uppercase;padding:6px 10px;border-radius:7px;background:var(--panel);border:1px solid var(--line);color:var(--muted)}
+.st.on{color:#1b1205;background:var(--amber);border-color:var(--amber)}
+.st.done{color:var(--ok);border-color:rgba(62,207,110,.4)}
+
+/* paper document */
+.paperWrap{overflow-x:auto;border-radius:6px}
+.paper{background:var(--paper);color:var(--ink);border-radius:4px;padding:22px 22px 18px;box-shadow:0 18px 50px rgba(0,0,0,.45);min-width:560px;font-family:var(--f-body);position:relative}
+.paper .hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:12px;gap:12px}
+.paper .hdr h2{font:700 21px var(--f-display);letter-spacing:.04em;line-height:1.05}
+.paper .hdr small{display:block;font:600 11px var(--f-display);letter-spacing:.16em;color:var(--label)}
+.docno{font:500 12px var(--f-mono);color:var(--label);text-align:right}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-bottom:12px}
+.fld{border-bottom:1px solid var(--rule);padding-bottom:4px;min-height:44px}
+.lab{display:block;font:600 10.5px var(--f-display);letter-spacing:.16em;text-transform:uppercase;color:var(--label);margin-bottom:2px}
+.val{font:500 13px/1.45 var(--f-mono);color:#17202a}
+.blank{display:inline-block;min-width:120px;height:1.2em}
+table.dg{width:100%;border-collapse:collapse;margin:6px 0 12px;font-size:13px}
+table.dg th{font:600 10.5px var(--f-display);letter-spacing:.14em;text-transform:uppercase;color:var(--label);text-align:left;border-bottom:1.5px solid var(--ink);padding:5px 6px}
+table.dg td{border-bottom:1px solid var(--rule);padding:8px 6px;vertical-align:top;font:500 13px/1.45 var(--f-mono)}
+table.dg td:nth-child(1){width:23%}
+table.dg td:nth-child(3){width:17%;text-align:right;white-space:nowrap}
+table.dg th:nth-child(3){text-align:right}
+.phoneRow{display:flex;gap:14px;align-items:baseline;border:1.5px solid var(--ink);padding:8px 10px;margin-bottom:12px;flex-wrap:wrap}
+.phoneRow .lab{margin:0}
+.cert{border:1px solid var(--rule);padding:10px 12px;font-size:12.5px;line-height:1.5}
+.cert p{font-family:var(--f-body);color:#262d35;margin-bottom:8px;max-width:72ch}
+.sigline{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end;font:500 13px var(--f-mono)}
+.sig{font-family:'Brush Script MT','Segoe Script',cursive;font-size:22px;color:#2b3f7a;line-height:1;min-width:110px;border-bottom:1px solid var(--rule)}
+.stamp{position:absolute;right:26px;top:72px;transform:rotate(-8deg);border:3px solid rgba(180,30,30,.6);color:rgba(180,30,30,.65);font:700 15px var(--f-display);letter-spacing:.14em;padding:3px 10px;border-radius:4px;pointer-events:none}
+
+/* clickable zones */
+.z{border-radius:4px;cursor:pointer;outline:1px dashed transparent;transition:background .15s,outline-color .15s;position:relative;display:inline}
+.zb{display:block}
+.armed .z:hover{background:var(--zone);outline-color:rgba(200,130,10,.55)}
+.z.fl{background:rgba(255,90,82,.16);outline:2px solid #d43b33}
+.z .badge{position:absolute;top:-9px;right:-9px;background:#d43b33;color:#fff;font:700 11px var(--f-body);border-radius:999px;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 4px;pointer-events:none}
+.res .z{cursor:default}
+.z.r-hit{background:rgba(62,207,110,.2);outline:2px solid #1f9c50}
+.z.r-part{background:rgba(245,166,35,.22);outline:2px solid #c98510}
+.z.r-false{background:rgba(255,90,82,.14);outline:2px dashed #d43b33}
+.z.r-miss{background:rgba(90,169,255,.18);outline:2px dashed #2f6fc4}
+.z .rb{position:absolute;top:-10px;right:-10px;font:700 11px var(--f-body);color:#fff;border-radius:999px;width:19px;height:19px;display:flex;align-items:center;justify-content:center;pointer-events:none}
+
+/* side panel */
+.side{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;position:sticky;top:12px}
+.side h3{font:700 24px/1.1 var(--f-display);letter-spacing:.02em;text-wrap:balance}
+.side .sub{color:var(--muted);font-size:14px}
+.flags{display:flex;flex-direction:column;gap:6px}
+.flag{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px}
+.flag .n{background:#d43b33;color:#fff;border-radius:999px;width:20px;height:20px;font:700 11px var(--f-body);display:flex;align-items:center;justify-content:center}
+.flag small{display:block;color:var(--muted);font-size:12px}
+.x{background:none;border:0;color:var(--muted);cursor:pointer;font-size:18px;padding:0 4px}
+.empty{color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:8px;padding:10px 12px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions .btn{flex:1}
+.fb{display:flex;flex-direction:column;gap:8px}
+.fbi{border-radius:8px;padding:9px 12px;font-size:14px;background:var(--panel2);border:1px solid var(--line);display:grid;grid-template-columns:20px 1fr;gap:8px}
+.fbi .ic{font-weight:700}
+.fbi.hit .ic{color:var(--ok)}.fbi.part .ic{color:var(--amber)}.fbi.miss .ic{color:var(--info)}.fbi.false .ic{color:var(--bad)}
+.fbi b{display:block;font-weight:600}
+.fbi span{color:var(--muted)}
+.scoreLine{display:flex;align-items:baseline;gap:10px;font-variant-numeric:tabular-nums}
+.scoreLine b{font:700 40px var(--f-display);line-height:1}
+.scoreLine span{color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+/* placards */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tile{background:var(--panel2);border:1.5px solid var(--line);border-radius:10px;padding:8px 4px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}
+.tile svg{width:56px;height:56px}
+.tile span{font:600 12px var(--f-display);letter-spacing:.08em;color:var(--muted);text-transform:uppercase;text-align:center;line-height:1.1}
+.tile.on{border-color:var(--amber);background:rgba(245,166,35,.13)}
+.tile.on span{color:var(--amber2)}
+.tile.none{grid-column:span 2;flex-direction:row;justify-content:center;min-height:52px}
+.tile.none span{font-size:14px}
+.chk{display:flex;gap:10px;align-items:center;background:var(--panel2);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;font-size:14px}
+.chk input{width:18px;height:18px;accent-color:var(--amber)}
+.truck{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px}
+.truck svg{width:100%;height:auto;display:block}
+.loadInfo{font-size:14px;color:var(--muted)}
+.loadInfo b{color:var(--text)}
+.mlist{list-style:none;display:flex;flex-direction:column;gap:4px;font-size:14px;font-variant-numeric:tabular-nums}
+.mlist li{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed var(--line);padding-bottom:3px}
+
+/* quiz */
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{text-align:left;background:var(--panel2);border:1.5px solid var(--line);border-radius:10px;padding:11px 13px;font-size:15px;cursor:pointer}
+.opt:hover{border-color:var(--muted)}
+.opt.right{border-color:var(--ok);background:rgba(62,207,110,.12)}
+.opt.wrong{border-color:var(--bad);background:rgba(255,90,82,.1)}
+.opt:disabled{cursor:default}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(5,8,12,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;width:100%;max-width:440px;padding:18px;max-height:90vh;overflow:auto}
+.sheet h4{font:700 20px var(--f-display);letter-spacing:.02em;margin-bottom:4px}
+.sheet .sub{color:var(--muted);font-size:13px;margin-bottom:12px}
+.sheet .opts .opt{padding:9px 12px;font-size:14px}
+.sheet .opt.cur{border-color:var(--amber)}
+
+/* end */
+.endCard{max-width:760px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px}
+.endCard h2{font:700 40px/1.05 var(--f-display);margin:4px 0 6px}
+.rounds{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin:16px 0}
+.rnd{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-variant-numeric:tabular-nums}
+.rnd small{display:block;font:600 11px var(--f-display);letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+.rnd b{font:700 22px var(--f-display)}
+.ref{max-width:820px;margin:0 auto}
+.ref h2{font:700 36px var(--f-display);margin-bottom:10px}
+.ref h3{font:700 20px var(--f-display);letter-spacing:.04em;color:var(--amber2);margin:20px 0 8px;text-transform:uppercase}
+.ref ul{padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:72ch}
+.ref p{max-width:72ch;color:var(--muted)}
+.ref code{font:500 13px var(--f-mono);background:var(--panel2);border:1px solid var(--line);padding:1px 5px;border-radius:4px;color:var(--text)}
+
+@media (max-width:900px){
+  .home,.game{grid-template-columns:minmax(0,1fr)}
+  .side{position:static}
+  .home h1{font-size:40px}
+}
+@media (max-width:520px){
+  .modes{grid-template-columns:1fr}
+  .tiles{grid-template-columns:repeat(3,1fr)}
+  .tile.none{grid-column:span 3}
+  .appname{font-size:19px}
+  .paper{min-width:0;padding:16px 14px}
+  .grid2{grid-template-columns:1fr}
+  table.dg td,table.dg th{padding:6px 4px}
+  table.dg td{font-size:12px}
+  .paper .hdr h2{font-size:18px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <div>
+      <div class="brand">GAMACHE GAMES · TRUCKING TRAINER</div>
+      <div class="appname">Dangerous Goods Paperwork Checker</div>
+    </div>
+    <div class="sp"></div>
+    <span class="pill hidden" id="roundPill">Load <b id="rNum">1</b><span id="rOf"></span></span>
+    <span class="pill hidden" id="scorePill">Score <b id="rScore">0</b></span>
+    <button class="btn small hidden" id="homeBtn">Menu</button>
+  </div>
+
+  <!-- HOME -->
+  <section id="home" class="home">
+    <div>
+      <h1>Check the papers before you haul the load.</h1>
+      <p class="lead">Each load comes with a TDG shipping document. Find what's wrong with it, decide which placards the trailer needs, then answer one rules question.</p>
+      <div class="modes">
+        <button class="mode" id="practiceBtn"><b>Practice</b><span>Endless loads. Full explanations after every step.</span><i>Start practice</i></button>
+        <button class="mode" id="testBtn"><b>Test</b><span>10 loads, scored out of 100.</span><i id="bestTxt">Start test</i></button>
+      </div>
+      <div class="steps3">
+        <div class="s3"><em>1</em><div><b>Check the paperwork</b><span>Tap anything on the document that's missing or wrong and say what the problem is. Some documents are perfect.</span></div></div>
+        <div class="s3"><em>2</em><div><b>Placard the trailer</b><span>Pick the placards for the load, or decide none are needed. Watch the 500 kg rule and the classes that must always be placarded.</span></div></div>
+        <div class="s3"><em>3</em><div><b>Rules check</b><span>One quick question about shipping documents or placards.</span></div></div>
+      </div>
+      <div class="actions" style="margin-top:20px;max-width:360px"><button class="btn" id="refBtn">Rules reference</button></div>
+      <p class="note">Practice aid based on Parts 3 and 4 of Canada's Transportation of Dangerous Goods Regulations for road transport. Loads cover classes 2.1, 2.2, 3, 4.1, 4.3, 5.1, 6.1, 8 and 9 in non-ERAP quantities. It doesn't cover explosives, toxic gases, radioactives, ERAP loads or air, rail and marine rules. Always check the current TDG Regulations and your company's procedures. All companies, people and phone numbers are made up.</p>
+    </div>
+    <div class="placardRow" id="homePlacards" aria-hidden="true"></div>
+  </section>
+
+  <!-- REFERENCE -->
+  <section id="ref" class="ref hidden">
+    <h2>Rules reference</h2>
+    <p>A summary of what this app checks. The TDG Regulations are the legal text.</p>
+    <h3>Shipping document must show</h3>
+    <ul>
+      <li>Consignor's name and address in Canada</li>
+      <li>Date the document was prepared or given to the carrier</li>
+      <li>The description of each dangerous good, in this order: <code>UN number</code>, <code>shipping name</code>, <code>primary class</code>, <code>subsidiary class(es)</code> in brackets, <code>packing group</code></li>
+      <li>The UN number with the letters “UN” in front, for example <code>UN1203</code></li>
+      <li>The proper shipping name from Schedule 1, not a trade name</li>
+      <li>A technical name in brackets after the shipping name when special provision 16 applies (most N.O.S. entries)</li>
+      <li>Packing group in Roman numerals, which may be preceded by “PG”: <code>II</code> or <code>PG II</code>. Gases and some class 9 goods have no packing group.</li>
+      <li>Quantity in SI units (kg or L)</li>
+      <li>Number of small means of containment that need labels</li>
+      <li>A 24-hour number where someone can be reached at any time. CANUTEC's number only if the consignor is registered with CANUTEC or has its permission.</li>
+      <li>ERAP number and phone number when an ERAP is required (not used in this app)</li>
+      <li>The consignor's certification statement and the name of the person who certified it</li>
+    </ul>
+    <h3>Where the document goes</h3>
+    <ul>
+      <li>While driving: in a pocket on the driver's door, or within the driver's reach</li>
+      <li>When you leave the vehicle: in the driver's door pocket, on the driver's seat, or somewhere clearly visible to anyone entering through the driver's door</li>
+    </ul>
+    <h3>Placards on a trailer or tank</h3>
+    <ul>
+      <li>Primary class placard for each dangerous good, on each side and each end</li>
+      <li>Placard sides at least 250 mm</li>
+      <li>500 kg exemption: if the total gross mass of dangerous goods in small containers is 500 kg or less, placards aren't needed, except for goods such as class 4.3, class 2.3, class 1, ERAP goods and others listed in section 4.16.1</li>
+      <li>DANGER placard: may replace the placards when two or more dangerous goods needing different placards are loaded in small containers, but not for a class over 1,000 kg gross from one consignor, and not for classes such as 4.3, 2.3 or ERAP goods</li>
+      <li>UN number on placards: required for ERAP goods and for a liquid or gas in direct contact with the large means of containment, such as fuel in a highway tank</li>
+      <li>Subsidiary class placards: only required in specific cases (mainly ERAP goods). A subsidiary class like methanol's 6.1 still goes on the paperwork.</li>
+    </ul>
+    <div class="actions" style="margin-top:24px;max-width:300px"><button class="btn primary" id="refBack">Back</button></div>
+  </section>
+
+  <!-- GAME -->
+  <section id="game" class="game hidden">
+    <div>
+      <div class="stepper"><span class="st" id="st1">1 · Paperwork</span><span class="st" id="st2">2 · Placards</span><span class="st" id="st3">3 · Rules check</span></div>
+      <div class="paperWrap"><div class="paper" id="paper"></div></div>
+    </div>
+    <aside class="side" id="side"></aside>
+  </section>
+
+  <!-- END -->
+  <section id="end" class="hidden">
+    <div class="endCard">
+      <div class="brand">TEST REPORT</div>
+      <h2 id="endTitle"></h2>
+      <div class="scoreLine"><b id="endScore">0</b><span>/ 100 average · <span id="endTime"></span></span></div>
+      <div class="rounds" id="endRounds"></div>
+      <div class="fb" id="endNotes"></div>
+      <div class="actions" style="margin-top:18px"><button class="btn primary" id="againBtn">Take the test again</button><button class="btn" id="endHome">Menu</button></div>
+    </div>
+  </section>
+</div>
+
+<div class="modal hidden" id="modal"><div class="sheet" id="sheet"></div></div>
+
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const ri=(a,b)=>Math.floor(rnd(a,b+1));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const fmt=n=>Math.round(n).toLocaleString('en-CA');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ---------- dangerous goods used in the app ----------
+// pk: [packaging label, gross kg per package, min count, max count]
+const PROD=[
+ {id:'gasoline',un:'1203',name:'GASOLINE',cls:'3',pg:'II',trade:'REGULAR UNLEADED',pk:[['steel drums (205 L)',172,1,14],['jerrycans (20 L)',18,2,30]]},
+ {id:'diesel',un:'1202',name:'DIESEL FUEL',cls:'3',pg:'III',trade:'ULTRA LOW SULPHUR CLEAR',pk:[['steel drums (205 L)',185,1,14]]},
+ {id:'acetone',un:'1090',name:'ACETONE',cls:'3',pg:'II',trade:'SOLVENT 99',pk:[['steel drums (205 L)',170,1,12],['plastic pails (20 L)',17,4,40]]},
+ {id:'ipa',un:'1219',name:'ISOPROPANOL',cls:'3',pg:'II',trade:'IPA CLEANER',pk:[['plastic pails (20 L)',17,4,40],['steel drums (205 L)',168,1,12]]},
+ {id:'methanol',un:'1230',name:'METHANOL',cls:'3',sub:'6.1',pg:'II',trade:'WINDSHIELD WASHER CONCENTRATE',pk:[['steel drums (205 L)',170,1,12]]},
+ {id:'paint',un:'1263',name:'PAINT',cls:'3',pg:'II',trade:'PRO-COAT ENAMEL',pk:[['metal pails (18.9 L)',24,4,60],['fibreboard boxes (4 x 3.78 L)',19,6,60]]},
+ {id:'flamnos',un:'1993',name:'FLAMMABLE LIQUID, N.O.S.',tech:'TOLUENE, HEPTANE',cls:'3',pg:'II',trade:'PARTS DEGREASER',pk:[['steel drums (205 L)',175,1,10]]},
+ {id:'propane',un:'1978',name:'PROPANE',cls:'2.1',trade:'FORKLIFT LPG',pk:[['cylinders (15 kg)',30,4,40]]},
+ {id:'acetylene',un:'1001',name:'ACETYLENE, DISSOLVED',cls:'2.1',trade:'WELDING GAS',pk:[['cylinders',75,2,16]]},
+ {id:'nitrogen',un:'1066',name:'NITROGEN, COMPRESSED',cls:'2.2',trade:'INDUSTRIAL N2',pk:[['cylinders',68,2,20]]},
+ {id:'co2',un:'1013',name:'CARBON DIOXIDE',cls:'2.2',trade:'BEVERAGE CO2',pk:[['cylinders',60,2,20]]},
+ {id:'sulphur',un:'1350',name:'SULPHUR',cls:'4.1',pg:'III',trade:'GARDEN SULPHUR PRILLS',pk:[['bags (25 kg)',26,4,60]]},
+ {id:'carbide',un:'1402',name:'CALCIUM CARBIDE',cls:'4.3',pg:'II',trade:'CARBIDE LUMP',pk:[['steel drums (50 kg)',54,1,8]]},
+ {id:'calhypo',un:'1748',name:'CALCIUM HYPOCHLORITE, DRY',cls:'5.1',pg:'II',trade:'POOL SHOCK 65',pk:[['plastic pails (45 kg)',48,2,30]]},
+ {id:'anfert',un:'2067',name:'AMMONIUM NITRATE BASED FERTILIZER',cls:'5.1',pg:'III',trade:'34-0-0 GRANULAR',pk:[['bags (25 kg)',26,4,60]]},
+ {id:'dcm',un:'1593',name:'DICHLOROMETHANE',cls:'6.1',pg:'III',trade:'PAINT STRIPPER BASE',pk:[['steel drums (205 L)',275,1,8],['plastic pails (20 L)',27,2,30]]},
+ {id:'sulphuric',un:'1830',name:'SULPHURIC ACID with more than 51% acid',cls:'8',pg:'II',trade:'BATTERY ACID',pk:[['plastic carboys (20 L)',38,2,30],['plastic drums (205 L)',380,1,6]]},
+ {id:'hcl',un:'1789',name:'HYDROCHLORIC ACID',cls:'8',pg:'II',trade:'MURIATIC ACID',pk:[['plastic carboys (20 L)',25,2,30]]},
+ {id:'naohsol',un:'1824',name:'SODIUM HYDROXIDE SOLUTION',cls:'8',pg:'II',trade:'CAUSTIC 50',pk:[['plastic pails (20 L)',31,2,30],['plastic drums (205 L)',300,1,6]]},
+ {id:'naohsolid',un:'1823',name:'SODIUM HYDROXIDE, SOLID',cls:'8',pg:'II',trade:'CAUSTIC BEADS',pk:[['bags (25 kg)',26,4,40]]},
+ {id:'liion',un:'3480',name:'LITHIUM ION BATTERIES',cls:'9',trade:'48V FORKLIFT BATTERY PACKS',pk:[['crates',160,1,12]]},
+ {id:'envliq',un:'3082',name:'ENVIRONMENTALLY HAZARDOUS SUBSTANCE, LIQUID, N.O.S.',tech:'PERMETHRIN',cls:'9',pg:'III',trade:'BARN FLY CONTROL',pk:[['plastic pails (20 L)',22,4,40]]},
+ {id:'beads',un:'2211',name:'POLYMERIC BEADS, EXPANDABLE',cls:'9',pg:'III',trade:'EPS RESIN',pk:[['fibreboard boxes (500 kg)',520,1,4]]}
+];
+const CLASSES=['2.1','2.2','3','4.1','4.3','5.1','6.1','8','9'];
+const CLASS_NAME={'2.1':'Flammable gas','2.2':'Non-flammable gas','3':'Flammable liquid','4.1':'Flammable solid','4.3':'Water-reactive','5.1':'Oxidizer','6.1':'Toxic','8':'Corrosive','9':'Miscellaneous','DANGER':'DANGER'};
+const ROMAN={'I':'1','II':'2','III':'3'};
+const ALWAYS=['4.3']; // classes in this app that are never covered by the 500 kg exemption or the DANGER placard
+
+const CONSIGNORS=[
+ ['Larkspur Industrial Supply Ltd.','2210 Brigantine Road, Coquitlam, BC V3K 0B7'],
+ ['Kettle Ridge Chemical Co.','415 Mill Bay Crescent, Kamloops, BC V2C 6R2'],
+ ['Northbend Pool & Spa Wholesale','88-19055 Airway Street, Surrey, BC V3S 0H1'],
+ ['Silverfern Coatings Inc.','7731 Hopper Place, Delta, BC V4G 1C9'],
+ ['Pinecrest Ag Supply','3100 Dobbin Road, Vernon, BC V1H 1Z4'],
+ ['Tidewater Gas & Welding','1290 Cliffside Avenue, Nanaimo, BC V9R 2J8'],
+ ['Granite Peak Fuel Distributors','5605 Haul Road, Prince George, BC V2N 4T1'],
+ ['Westvale Battery Systems','36-12871 Bathgate Way, Richmond, BC V6V 1Y5']
+];
+const CONSIGNEES=['Cariboo Mining Services, Williams Lake, BC','Okanagan Orchard Co-op, Kelowna, BC','Bayline Marine Repair, Port Alberni, BC','Summit Fabrication Ltd., Cranbrook, BC','Riverbend Water Treatment, Chilliwack, BC','Highline Construction, Fort St. John, BC','Coastal Agri Depot, Abbotsford, BC'];
+const PEOPLE=['J. Tremblay','A. Singh','M. Chen','R. Olsen','D. Fournier','K. Nakamura','S. MacLeod','P. Gill'];
+const CARRIERS=['Ridgeline Freight Ltd.','Fraserview Carriers','Snowcap Transport Inc.'];
+const CERT='I hereby declare that the contents of this consignment are fully and accurately described above by the proper shipping name, are properly classified and packaged, have dangerous goods safety marks properly affixed or displayed on them, and are in all respects in proper condition for transport according to the Transportation of Dangerous Goods Regulations.';
+
+// ---------- errors ----------
+// zone: d=description, q=quantity, c=package count (line zones) or a document zone id
+const ERR={
+ noUN:{zone:'d',label:'UN number is missing the letters “UN”',ok:l=>!l.tank||true,
+   apply:l=>{l.f.unPrefix=false},why:l=>`The UN number has to be written with “UN” in front of it: UN${l.p.un}, not just ${l.p.un}.`},
+ wrongUN:{zone:'d',label:"UN number doesn't match the shipping name",ok:()=>true,
+   apply:l=>{const o=pick(PROD.filter(p=>p.un!==l.p.un&&p.cls===l.p.cls).concat(PROD.filter(p=>p.un!==l.p.un)).slice(0,6));l.f.un=o.un;l.f.wrongFrom=o},
+   why:l=>`UN${l.f.un} is ${l.f.wrongFrom.name}. ${l.p.name} is UN${l.p.un}.`},
+ tradeName:{zone:'d',label:'Trade name used instead of the shipping name',ok:()=>true,
+   apply:l=>{l.f.name=l.p.trade;l.f.tech=null},why:l=>`“${l.p.trade}” is a product name. The document must use the shipping name from Schedule 1: ${l.p.name}${l.p.name.endsWith('.')?'':'.'}`},
+ wrongClass:{zone:'d',label:'Wrong primary class',ok:()=>true,
+   apply:l=>{l.f.cls=pick(CLASSES.filter(c=>c!==l.p.cls&&c!==l.p.sub))},why:l=>`${l.p.name} is class ${l.p.cls}, not ${l.f.cls}.`},
+ missingSub:{zone:'d',label:'Subsidiary class missing',ok:l=>!!l.p.sub,
+   apply:l=>{l.f.sub=null},why:l=>`${l.p.name} has subsidiary class ${l.p.sub}. It goes in brackets after the primary class: ${l.p.cls} (${l.p.sub}).`},
+ missingPG:{zone:'d',label:'Packing group missing',ok:l=>!!l.p.pg,
+   apply:l=>{l.f.pg=null},why:l=>`${l.p.name} is packing group ${l.p.pg}. It has to be at the end of the description.`},
+ arabicPG:{zone:'d',label:'Packing group not in Roman numerals',ok:l=>!!l.p.pg,
+   apply:l=>{l.f.pgArabic=true},why:l=>`Packing groups are written in Roman numerals: ${l.p.pg} or PG ${l.p.pg}, not PG ${ROMAN[l.p.pg]}.`},
+ missingTech:{zone:'d',label:'Technical name missing',ok:l=>!!l.p.tech,
+   apply:l=>{l.f.tech=null},why:l=>`${l.p.name} is an N.O.S. entry that needs the technical name in brackets after it: (${l.p.tech}).`},
+ order:{zone:'d',label:'Description in the wrong order',ok:()=>true,
+   apply:l=>{l.f.order=pick(['clsFirst','pgFirst'])},why:()=>`The description must run UN number, shipping name, class, subsidiary class, packing group, in that order.`},
+ nonSI:{zone:'q',label:'Quantity not in SI units (kg or L)',ok:()=>true,
+   apply:l=>{l.f.nonSI=true},why:l=>l.tank?`Quantity must be in SI units. ${fmt(l.qty*0.264172)} US gal should be shown as ${fmt(l.qty)} L.`:`Quantity must be in SI units. ${fmt(l.qty*2.20462)} lb should be shown as ${fmt(l.qty)} kg.`},
+ missingQty:{zone:'q',label:'Quantity missing',ok:()=>true,
+   apply:l=>{l.f.noQty=true},why:()=>`Every dangerous good needs its total quantity in kg or L.`},
+ missingCount:{zone:'c',label:'Number of packages missing',ok:l=>!l.tank,
+   apply:l=>{l.f.noCount=true},why:l=>`The number of small means of containment has to be shown: ${l.n} ${l.pkg}.`},
+ missingAddr:{zone:'consignor',label:"Consignor's address missing",doc:true,
+   apply:d=>{d.f.noAddr=true},why:d=>`The consignor's name and address in Canada are required. The address is blank.`},
+ missingDate:{zone:'date',label:'Date missing',doc:true,
+   apply:d=>{d.f.noDate=true},why:()=>`The date the document was prepared or given to the carrier is required.`},
+ missing24:{zone:'phone',label:'24-hour number missing',doc:true,
+   apply:d=>{d.f.noPhone=true},why:()=>`Every shipping document needs a 24-hour number where someone can be reached about the dangerous goods at any time.`},
+ office24:{zone:'phone',label:"Number isn't answered 24 hours",doc:true,
+   apply:d=>{d.f.officeHours=true},why:()=>`The number listed is only answered during office hours. It has to be answered 24 hours a day while the goods are in transport.`},
+ missingCert:{zone:'cert',label:'Certification statement missing',doc:true,
+   apply:d=>{d.f.noCert=true},why:()=>`The consignor's certification statement is required on the document.`},
+ certNoName:{zone:'cert',label:'Name of person certifying missing',doc:true,
+   apply:d=>{d.f.noCertName=true},why:()=>`The certification has to include the name of the person who made it. Name and signature are blank.`}
+};
+const ZONE_REASONS={
+ d:['wrongUN','noUN','tradeName','wrongClass','missingSub','missingPG','arabicPG','missingTech','order'],
+ q:['nonSI','missingQty'],c:['missingCount'],
+ consignor:['missingAddr'],date:['missingDate'],phone:['missing24','office24'],cert:['missingCert','certNoName'],
+ consignee:['other'],carrier:['other'],docno:['other']
+};
+const OTHER_LABEL="Something's missing or wrong here";
+const ZONE_NAME={d:'Description',q:'Quantity',c:'Packages',consignor:'Consignor',date:'Date',phone:'24-hour number',cert:'Certification',consignee:'Consignee',carrier:'Carrier',docno:'Document number'};
+
+// ---------- quiz ----------
+const QUIZ=[
+ {q:'While you are driving, where does the shipping document have to be?',a:"In a pocket on the driver's door, or within the driver's reach",w:['In the sleeper berth with your logbook','Taped to the load inside the trailer','With dispatch, as long as you can call them'],why:"While you're at the controls it goes in the driver's door pocket or anywhere within your reach, so responders can find it fast."},
+ {q:'You step out of the truck for coffee. Where can you leave the shipping document?',a:"Driver's door pocket, on the driver's seat, or clearly visible from the driver's door",w:['Take it with you into the restaurant','Lock it in the sleeper','In the glove box with the registration'],why:"When you leave the vehicle it must be in the door pocket, on the driver's seat, or in a spot clearly visible to anyone entering through the driver's door."},
+ {q:'How must the packing group be written?',a:'In Roman numerals, for example II or PG II',w:['In Arabic numerals, for example 2 or PG 2','As a word, for example “Medium danger”','It can be left off if the class is shown'],why:'Packing groups are shown in Roman numerals and may be preceded by “PG” or “Packing Group”.'},
+ {q:'What units does the quantity on a TDG shipping document have to be in?',a:'SI units, such as kg or L',w:['Any units, as long as the consignee understands them','US gallons for liquids, pounds for solids','Number of pallets only'],why:'Quantities are reported in SI units, such as kilograms and litres.'},
+ {q:'When can CANUTEC’s number be used as the 24-hour number?',a:'Only if the consignor is registered with CANUTEC or has its permission',w:['Any time, it is a public emergency line','Only for class 9 goods','Never, it has to be the driver’s cell phone'],why:'CANUTEC’s number may only be used by a consignor that is registered with CANUTEC or has been given permission.'},
+ {q:'Where does a technical name go when one is required?',a:'In brackets right after the shipping name',w:['At the bottom of the document','On the placard','Before the UN number'],why:'When special provision 16 applies (most N.O.S. entries), the technical name goes in brackets immediately after the shipping name.'},
+ {q:'In what order must the dangerous goods description appear?',a:'UN number, shipping name, class, subsidiary class, packing group',w:['Shipping name, class, UN number, packing group','Class, UN number, shipping name, packing group','Any order, as long as everything is there'],why:'The order is fixed: UN number, shipping name, primary class, subsidiary class in brackets, then packing group.'},
+ {q:'Where do placards go on a van trailer that needs them?',a:'On each side and each end',w:['On the front of the tractor only','On both sides only','On the rear doors only'],why:'Placards are displayed on each side and each end of the large means of containment, so a trailer gets four.'},
+ {q:'What is the minimum size of a standard placard?',a:'250 mm on each side',w:['100 mm on each side','150 mm on each side','400 mm on each side'],why:'Placards are at least 250 mm per side. Only a container too small for that may use a smaller size, never under 100 mm.'},
+ {q:'Your van has 200 kg of dangerous goods in small containers. Which class still needs placards?',a:'Class 4.3, water-reactive',w:['Class 3, flammable liquid','Class 8, corrosive','Class 9, miscellaneous'],why:'The 500 kg exemption does not cover class 4.3 (among others), so it is placarded in any quantity.'},
+ {q:'The DANGER placard can’t replace a class placard when that class is over what gross mass from one consignor?',a:'1,000 kg',w:['500 kg','2,000 kg','4,000 kg'],why:'The DANGER placard may not be used for goods in a class with a gross mass over 1,000 kg loaded from one consignor.'},
+ {q:'Methanol is class 3 with subsidiary class 6.1. In a normal (non-ERAP) load over 500 kg, which placard does the trailer need?',a:'Class 3 only',w:['Class 3 and class 6.1','Class 6.1 only','DANGER only'],why:'Placards are required for the primary class. Subsidiary class placards are only required in specific cases, mainly ERAP goods. The 6.1 still goes on the paperwork.'},
+ {q:'When must the UN number be shown on the placards?',a:'For ERAP goods, and for a liquid or gas in direct contact with the tank or container',w:['Always, on every placard','Only on the front placard','Only when the load is over 500 kg'],why:'UN numbers are displayed for ERAP goods and when a liquid or gas is in direct contact with the large means of containment, like fuel in a highway tank.'},
+ {q:'Who has to sign the certification on the shipping document?',a:'The consignor, with the name of the person certifying',w:['The driver, before leaving the yard','The consignee, on delivery','Nobody, it is preprinted'],why:'The consignor certifies the document, and the name of the person who certified it must be shown.'}
+];
+
+// ---------- placard drawings ----------
+function placardSVG(cls,opts){
+  opts=opts||{};
+  const D='50,2 98,50 50,98 2,50',I='50,7.5 92.5,50 50,92.5 7.5,50';
+  const uid='p'+Math.random().toString(36).slice(2,8);
+  let bg='#fff',fg='#111',sym='',num='',extra='',inner=true;
+  const flame=c=>`<path d="M50 14c5 7 11 11 9.5 21-.8 6-5 9.5-9.5 9.5s-9-3-9.5-9c-.4-6 3.5-8.5 4.5-14 1.6 3.6 2.8 5.6 4.6 6.6 1.2-4.2.8-9.6.4-14.1z" fill="${c}"/><rect x="38" y="46.5" width="24" height="2.4" fill="${c}"/>`;
+  switch(cls){
+   case '2.1': bg='#d42b1f';fg='#fff';sym=flame('#fff');num='2';break;
+   case '2.2': bg='#1f8a3c';fg='#fff';sym=`<rect x="44" y="20" width="12" height="27" rx="5" fill="#fff"/><rect x="47.5" y="15" width="5" height="6" fill="#fff"/><rect x="45" y="13" width="10" height="2.6" fill="#fff"/>`;num='2';break;
+   case '3': bg='#d42b1f';fg='#fff';sym=flame('#fff');num='3';break;
+   case '4.1': bg='#fff';fg='#111';extra=`<defs><pattern id="${uid}s" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="5" height="10" fill="#d42b1f"/></pattern><clipPath id="${uid}c"><polygon points="${D}"/></clipPath></defs><rect width="100" height="100" fill="url(#${uid}s)" clip-path="url(#${uid}c)"/>`;sym=flame('#111');num='4';break;
+   case '4.3': bg='#1d5fb4';fg='#fff';sym=flame('#fff');num='4';break;
+   case '5.1': bg='#f3d21a';fg='#111';sym=`<path d="M50 12c4 5 8 8 7 15-.6 4-3.5 6.5-7 6.5s-6.5-2-7-6.5c-.3-4.4 2.6-6 3.3-10 1.2 2.6 2 4 3.4 4.8.8-3 .6-6.9.3-9.8z" fill="#111"/><circle cx="50" cy="40" r="7" fill="none" stroke="#111" stroke-width="3"/><rect x="38" y="48.5" width="24" height="2.4" fill="#111"/>`;num='5.1';break;
+   case '6.1': bg='#fff';fg='#111';sym=`<g stroke="#111" stroke-width="3.2" stroke-linecap="round"><line x1="37" y1="38" x2="63" y2="49"/><line x1="63" y1="38" x2="37" y2="49"/></g><circle cx="50" cy="26" r="9.5" fill="#111"/><rect x="45" y="32" width="10" height="6" rx="1.5" fill="#111"/><circle cx="46.2" cy="25.5" r="2.4" fill="#fff"/><circle cx="53.8" cy="25.5" r="2.4" fill="#fff"/>`;num='6';break;
+   case '8': bg='#fff';fg='#fff';extra=`<defs><clipPath id="${uid}c"><polygon points="${D}"/></clipPath></defs><rect y="54" width="100" height="50" fill="#111" clip-path="url(#${uid}c)"/>`;sym=`<g fill="#111"><rect x="33" y="17" width="5" height="15" transform="rotate(-35 35 24)"/><rect x="57" y="17" width="5" height="15" transform="rotate(35 60 24)"/><circle cx="40" cy="36" r="1.8"/><circle cx="60" cy="36" r="1.8"/><path d="M33 47h12l-2-4h-8z"/><path d="M55 44c3-2 8-2 11 1v3H55z"/></g>`;num='8';break;
+   case '9': bg='#fff';fg='#111';extra=`<defs><clipPath id="${uid}t"><polygon points="50,7.5 92.5,50 7.5,50"/></clipPath></defs><g clip-path="url(#${uid}t)" fill="#111">${[0,1,2,3,4,5,6].map(i=>`<rect x="${21+i*8.6}" y="0" width="4.4" height="50"/>`).join('')}</g>`;num='9';break;
+   case 'DANGER': bg='#fff';fg='#111';inner=false;extra=`<defs><clipPath id="${uid}c"><polygon points="${D}"/></clipPath></defs><g clip-path="url(#${uid}c)" fill="#d42b1f"><rect width="100" height="27"/><rect y="73" width="100" height="27"/></g>`;sym=`<text x="50" y="54.5" text-anchor="middle" font-family="Barlow Condensed,Arial Narrow,Arial,sans-serif" font-weight="700" font-size="15" fill="#111">DANGER</text>`;break;
+  }
+  const numColor=cls==='8'?'#fff':(cls==='5.1'||cls==='6.1'||cls==='9'||cls==='4.1'?'#111':fg);
+  const numTxt=num?`<text x="50" y="85" text-anchor="middle" font-family="Barlow,Arial,sans-serif" font-weight="700" font-size="${num.length>1?13:17}" fill="${numColor}">${num}</text>${cls==='9'?'<rect x="45" y="87.5" width="10" height="1.8" fill="#111"/>':''}`:'';
+  const unPanel=opts.un?`<rect x="27" y="40" width="46" height="20" fill="#fff" stroke="#111" stroke-width="1.4"/><text x="50" y="55" text-anchor="middle" font-family="Barlow Condensed,Arial Narrow,Arial,sans-serif" font-weight="700" font-size="15" fill="#111">${opts.un}</text>`:'';
+  const innerLine=inner?`<polygon points="${I}" fill="none" stroke="${cls==='8'?'#888':(fg==='#fff'?'#fff':'#111')}" stroke-width="1.2"/>`:'';
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${CLASS_NAME[cls]||cls} placard"><polygon points="${D}" fill="${bg}"/>${extra}${innerLine}<polygon points="${D}" fill="none" stroke="#222" stroke-width="1.6"/>${unPanel?'':sym}${unPanel}${numTxt}</svg>`;
+}
+$('homePlacards').innerHTML=['3','8','2.1','5.1','6.1','9','4.3','DANGER'].map(c=>placardSVG(c)).join('');
+
+// ---------- state ----------
+let G=null; // game session
+let R=null; // current round
+const TEST_LEN=10;
+function bestGet(){try{return +localStorage.getItem('dgpc_best')||0}catch(e){return 0}}
+function bestSet(v){try{localStorage.setItem('dgpc_best',String(v))}catch(e){}}
+function showBest(){const b=bestGet();$('bestTxt').textContent=b?`Start test · best ${b}`:'Start test';}
+showBest();
+
+function show(id){['home','game','end','ref'].forEach(s=>$(s).classList.toggle('hidden',s!==id));
+  const inGame=id==='game';$('roundPill').classList.toggle('hidden',!inGame);$('scorePill').classList.toggle('hidden',!inGame||!G||G.mode!=='test');$('homeBtn').classList.toggle('hidden',id==='home'||id==='ref');window.scrollTo(0,0);}
+
+// ---------- round generation ----------
+function makeRound(){
+  const tank=Math.random()<0.14;
+  const lines=[];
+  if(tank){
+    const p=PROD.find(x=>x.id==='diesel');
+    const qty=ri(60,84)*500;
+    lines.push({p,tank:true,pkg:'highway tank (TC 406)',n:1,qty,unit:'L'});
+  }else{
+    const small=Math.random()<0.3;
+    const k=small?pick([1,1,2,2,3]):pick([1,2,2,3,3]);
+    let pool=shuffle(PROD.filter(p=>p.id!=='diesel'||Math.random()<0.5));
+    // keep 4.3 rare
+    if(Math.random()<0.7)pool=pool.filter(p=>p.cls!=='4.3');
+    const chosen=[];
+    for(const p of pool){if(chosen.length>=k)break;if(chosen.some(c=>c.id===p.id))continue;chosen.push(p);}
+    chosen.forEach(p=>{
+      const fits=small?p.pk.filter(x=>x[1]<=460/k):p.pk;if(!fits.length)return;
+      const pk=pick(fits);let n;
+      if(small){const target=rnd(40,460/k);n=Math.max(1,Math.min(pk[3],Math.round(target/pk[1])));}
+      else{const target=rnd(350,3200);n=Math.max(pk[2],Math.min(pk[3],Math.round(target/pk[1])));}
+      lines.push({p,pkg:pk[0],n,qty:n*pk[1],unit:'kg'});
+    });
+    // guarantee the small load is really 500 kg or less
+    if(small){let tot=lines.reduce((s,l)=>s+l.qty,0);while(tot>500){const l=lines.reduce((a,b)=>a.qty>b.qty?a:b);const per=l.qty/l.n;if(l.n>1){l.n--;l.qty=l.n*per;}else{lines.splice(lines.indexOf(l),1);}tot=lines.reduce((s,l)=>s+l.qty,0);}}
+  }
+  if(!lines.length)return makeRound();
+  lines.forEach(l=>{l.f={unPrefix:true,un:l.p.un,name:l.p.name,tech:l.p.tech||null,cls:l.p.cls,sub:l.p.sub||null,pg:l.p.pg||null,pgArabic:false,order:'std',nonSI:false,noQty:false,noCount:false};l.pgStyle=pick(['plain','PG']);});
+  const c=pick(CONSIGNORS);
+  const d=new Date();d.setDate(d.getDate()-ri(0,3));
+  const doc={no:'BL-'+ri(10000,99999),consignor:c,consignee:pick(CONSIGNEES),carrier:pick(CARRIERS),date:d.toISOString().slice(0,10),
+    phone:pick(['604','250','778','236'])+'-555-01'+String(ri(10,99)),person:pick(PEOPLE),lines,tank,f:{}};
+  // errors
+  const nErr=pickW([[0,.14],[1,.38],[2,.32],[3,.16]]);
+  const cands=[];
+  lines.forEach((l,i)=>{Object.keys(ERR).forEach(k=>{const e=ERR[k];if(!e.doc&&e.ok(l))cands.push({k,line:i,zone:'L'+i+e.zone});});});
+  Object.keys(ERR).forEach(k=>{if(ERR[k].doc)cands.push({k,line:-1,zone:ERR[k].zone});});
+  const errs=[];const used=new Set();
+  // weight description errors higher
+  const bag=shuffle(cands.flatMap(c=>ERR[c.k].zone==='d'?[c,c]:[c]));
+  for(const c of bag){if(errs.length>=nErr)break;if(used.has(c.zone))continue;used.add(c.zone);errs.push(c);}
+  errs.forEach(e=>{const E=ERR[e.k];if(E.doc)E.apply(doc);else E.apply(lines[e.line]);});
+  return {doc,errs,flags:{},step:1,docPts:0,docMax:0,plPts:0,qPts:0,quiz:nextQuiz()};
+}
+function pickW(arr){let r=Math.random();for(const [v,w] of arr){if((r-=w)<=0)return v;}return arr[arr.length-1][0];}
+let quizBag=[];
+function nextQuiz(){if(!quizBag.length)quizBag=shuffle(QUIZ.map((_,i)=>i));return QUIZ[quizBag.pop()];}
+
+// ---------- document rendering ----------
+function descHTML(l){
+  const f=l.f;
+  const un=(f.unPrefix?'UN':'')+f.un;
+  const name=f.name+(f.tech?` (${f.tech})`:'');
+  const cls=f.cls+(f.sub?` (${f.sub})`:'');
+  let pg='';
+  if(f.pg){pg=f.pgArabic?`PG ${ROMAN[f.pg]}`:(l.pgStyle==='PG'?`PG ${f.pg}`:f.pg);}
+  let parts;
+  if(f.order==='clsFirst')parts=[un,cls,name,pg];
+  else if(f.order==='pgFirst')parts=[un,name,pg,cls];
+  else parts=[un,name,cls,pg];
+  return parts.filter(Boolean).map(esc).join(', ');
+}
+function qtyHTML(l){
+  if(l.f.noQty)return '<span class="blank"></span>';
+  if(l.f.nonSI)return l.tank?`${fmt(l.qty*0.264172)} US gal`:`${fmt(l.qty*2.20462)} lb`;
+  return `${fmt(l.qty)} ${l.unit}`;
+}
+function one(lbl){return lbl.replace(/^([^(]*?)(\w+?)(es|s)(\s*\(|$)/,(m,a,w,e,t)=>a+w+(e==='es'&&!/x$/.test(w)?'e':'')+t);}
+function countHTML(l){
+  if(l.tank)return `1 ${esc(l.pkg)}`;
+  if(l.f.noCount)return `<span class="blank"></span> ${esc(l.pkg)}`;
+  return `${l.n} ${esc(l.n===1?one(l.pkg):l.pkg)}`;
+}
+function Z(id,inner,block){return `<span class="z${block?' zb':''}" data-z="${id}" tabindex="0" role="button">${inner}</span>`;}
+function renderDoc(){
+  const d=R.doc,f=d.f;
+  const rows=d.lines.map((l,i)=>`<tr><td>${Z('L'+i+'c',countHTML(l))}</td><td>${Z('L'+i+'d',descHTML(l))}</td><td>${Z('L'+i+'q',qtyHTML(l))}</td></tr>`).join('');
+  const phone=f.noPhone?'<span class="blank"></span>':`${d.phone}${f.officeHours?' (Mon–Fri 8:00–16:30)':''}`;
+  const cert=f.noCert?`<p style="color:#8b9096">&nbsp;</p>`:`<p>${CERT}</p>`;
+  const certName=f.noCertName?`<span>Name: <span class="blank"></span></span><span>Signature: <span class="sig">&nbsp;</span></span>`:`<span>Name: ${esc(d.person)}</span><span>Signature: <span class="sig">${esc(d.person.split(' ')[1]||d.person)}</span></span>`;
+  $('paper').innerHTML=`
+   <div class="hdr"><div><small>DANGEROUS GOODS</small><h2>SHIPPING DOCUMENT / BILL OF LADING</h2></div><div class="docno">${Z('docno','No. '+d.no)}<br>Page 1 of 1</div></div>
+   <div class="grid2">
+     <div class="fld">${Z('consignor',`<span class="lab">Consignor (shipper)</span><span class="val">${esc(d.consignor[0])}<br>${f.noAddr?'<span class="blank"></span>':esc(d.consignor[1])}</span>`,true)}</div>
+     <div class="fld">${Z('consignee',`<span class="lab">Consignee</span><span class="val">${esc(d.consignee)}</span>`,true)}</div>
+     <div class="fld">${Z('carrier',`<span class="lab">Carrier</span><span class="val">${esc(d.carrier)}</span>`,true)}</div>
+     <div class="fld">${Z('date',`<span class="lab">Date</span><span class="val">${f.noDate?'<span class="blank"></span>':d.date}</span>`,true)}</div>
+   </div>
+   <table class="dg"><thead><tr><th>Packages</th><th>Description of dangerous goods</th><th>Gross quantity</th></tr></thead><tbody>${rows}</tbody></table>
+   <div class="phoneRow">${Z('phone',`<span class="lab">24-hour number</span> <span class="val">${phone}</span>`)}</div>
+   <div class="cert">${Z('cert',`<span class="lab">Consignor's certification</span>${cert}<div class="sigline">${certName}</div>`,true)}</div>`;
+  $('paper').classList.toggle('armed',R.step===1&&!R.checked);
+  $('paper').classList.toggle('res',!!R.checked);
+  decorateZones();
+}
+function decorateZones(){
+  const zs=[...$('paper').querySelectorAll('.z')];
+  const order=Object.keys(R.flags);
+  zs.forEach(z=>{
+    const id=z.dataset.z;z.classList.remove('fl','r-hit','r-part','r-false','r-miss');z.querySelectorAll('.badge,.rb').forEach(b=>b.remove());
+    if(R.checked){const r=R.result[id];if(r){z.classList.add('r-'+r);const b=document.createElement('span');b.className='rb';b.style.background={hit:'#1f9c50',part:'#c98510',false:'#d43b33',miss:'#2f6fc4'}[r];b.textContent={hit:'✓',part:'~',false:'✕',miss:'!'}[r];z.appendChild(b);}}
+    else if(R.flags[id]){z.classList.add('fl');const b=document.createElement('span');b.className='badge';b.textContent=order.indexOf(id)+1;z.appendChild(b);}
+  });
+}
+$('paper').addEventListener('click',e=>{const z=e.target.closest('.z');if(!z||!R||R.step!==1||R.checked)return;openReasons(z.dataset.z);});
+$('paper').addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const z=e.target.closest('.z');if(!z||!R||R.step!==1||R.checked)return;e.preventDefault();openReasons(z.dataset.z);});
+
+function zoneType(id){const m=id.match(/^L(\d+)([dqc])$/);return m?m[2]:id;}
+function zoneTitle(id){const m=id.match(/^L(\d+)([dqc])$/);if(m)return `${ZONE_NAME[m[2]]}, line ${+m[1]+1}`;return ZONE_NAME[id];}
+function openReasons(id){
+  const t=zoneType(id);const cur=R.flags[id];
+  const list=(ZONE_REASONS[t]||['other']);
+  $('sheet').innerHTML=`<h4>${esc(zoneTitle(id))}</h4><div class="sub">What's the problem?</div><div class="opts">${list.map(k=>`<button class="opt${cur===k?' cur':''}" data-k="${k}">${esc(k==='other'?OTHER_LABEL:ERR[k].label)}</button>`).join('')}</div>
+   <div class="actions" style="margin-top:12px">${cur?'<button class="btn small" data-k="__clear">Remove flag</button>':''}<button class="btn small" data-k="__cancel">Cancel</button></div>`;
+  $('modal').classList.remove('hidden');
+  $('sheet').onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;const k=b.dataset.k;
+    if(k==='__clear')delete R.flags[id];else if(k!=='__cancel')R.flags[id]=k;
+    $('modal').classList.add('hidden');decorateZones();renderSide();};
+  const first=$('sheet').querySelector('.opt');if(first)first.focus();
+}
+$('modal').addEventListener('click',e=>{if(e.target===$('modal'))$('modal').classList.add('hidden');});
+addEventListener('keydown',e=>{if(e.key==='Escape')$('modal').classList.add('hidden');});
+
+// ---------- step 1 grading ----------
+function gradeDoc(){
+  const res={};const fb=[];let pts=0;const max=Math.max(2,R.errs.length*2);
+  const errByZone={};R.errs.forEach(e=>errByZone[e.zone]=e);
+  R.errs.forEach(e=>{
+    const E=ERR[e.k];const why=E.doc?E.why(R.doc):E.why(R.doc.lines[e.line]);
+    const fl=R.flags[e.zone];
+    if(fl===e.k){res[e.zone]='hit';pts+=2;fb.push({c:'hit',ic:'✓',t:E.label,s:why});}
+    else if(fl){res[e.zone]='part';pts+=1;fb.push({c:'part',ic:'~',t:`Right spot, wrong reason: ${E.label}`,s:why});}
+    else{res[e.zone]='miss';fb.push({c:'miss',ic:'!',t:`Missed: ${E.label}`,s:why});}
+  });
+  let falses=0;
+  Object.keys(R.flags).forEach(z=>{if(!errByZone[z]){res[z]='false';falses++;const k=R.flags[z];fb.push({c:'false',ic:'✕',t:`Not a problem: ${zoneTitle(z)}`,s:falseWhy(z,k)});}});
+  if(!R.errs.length&&!falses){pts=2;fb.unshift({c:'hit',ic:'✓',t:'This document was correct',s:'Everything required is there and in the right format.'});}
+  pts=Math.max(0,pts-falses);
+  R.result=res;R.fb=fb;R.docPts=pts;R.docMax=max;R.checked=true;
+}
+function falseWhy(z,k){
+  const t=zoneType(z);
+  const m=z.match(/^L(\d+)/);const l=m?R.doc.lines[+m[1]]:null;
+  if(t==='d'&&l){
+    const extra=[];
+    if(!l.p.pg)extra.push(`${l.p.cls.startsWith('2')?'Gases':'This entry'} has no packing group, so none is shown.`);
+    if(l.p.sub)extra.push(`The (${l.p.sub}) is its subsidiary class.`);
+    if(l.pgStyle==='PG'&&l.p.pg)extra.push('“PG” in front of the Roman numeral is allowed.');
+    return `${descHTMLplain(l)} is correct.${extra.length?' '+extra.join(' '):''}`;
+  }
+  if(t==='q'&&l)return `${fmt(l.qty)} ${l.unit} is in SI units and is the total for the line.`;
+  if(t==='c'&&l)return `The number and type of packages are shown.`;
+  if(t==='consignee'||t==='carrier'||t==='docno')return `This app doesn't test this field. Consignee, carrier and document number aren't among the TDG shipping document requirements it checks.`;
+  if(t==='phone')return `The 24-hour number is there and isn't limited to office hours.`;
+  if(t==='cert')return `The certification statement and the certifier's name are both there.`;
+  if(t==='consignor')return `Name and address are both shown.`;
+  if(t==='date')return `The date is shown.`;
+  return 'This part of the document was correct.';
+}
+function descHTMLplain(l){const p=l.p;return `UN${p.un}, ${p.name}${p.tech?` (${p.tech})`:''}, ${p.cls}${p.sub?` (${p.sub})`:''}${p.pg?', '+p.pg:''}`;}
+
+// ---------- step 2 placards ----------
+function placardAnswer(){
+  const d=R.doc,notes=[];
+  if(d.tank){
+    notes.push('Diesel in a highway tank is a liquid in direct contact with the tank, so the 500 kg exemption and the DANGER placard don’t apply.');
+    notes.push('Class 3 placards go on each side and each end, with UN number 1202 displayed.');
+    return {valid:[{set:['3'],un:true}],notes,mass:null};
+  }
+  const mass={};d.lines.forEach(l=>{mass[l.p.cls]=(mass[l.p.cls]||0)+l.qty;});
+  const total=Object.values(mass).reduce((a,b)=>a+b,0);
+  const alwaysMass=ALWAYS.reduce((s,c)=>s+(mass[c]||0),0);
+  let set;
+  const cls=Object.keys(mass);
+  if(total-alwaysMass<=500){
+    set=cls.filter(c=>ALWAYS.includes(c));
+    if(set.length&&cls.length>set.length)notes.push(`The other goods total ${fmt(total-alwaysMass)} kg, 500 kg or less, so they can use the placard exemption. Class 4.3 can’t, so it gets placards in any quantity.`);
+    else if(set.length)notes.push(`Total is ${fmt(total)} kg, but class 4.3 is never covered by the 500 kg exemption. It gets placards in any quantity.`);
+    else notes.push(`Total gross mass is ${fmt(total)} kg. That’s 500 kg or less of goods in small containers, so no placards are required.`);
+  }else{
+    set=cls.slice();
+    notes.push(`Total gross mass is ${fmt(total)} kg, over 500 kg, so each primary class needs its placard on each side and each end: ${set.map(c=>'class '+c).join(', ')}.`);
+  }
+  if(d.lines.some(l=>l.p.sub)&&set.includes('3'))notes.push('Methanol’s subsidiary class 6.1 doesn’t get its own placard here. Subsidiary placards are mainly for ERAP goods.');
+  const valid=[{set,un:false}];
+  if(set.length>=2){
+    const elig=set.filter(c=>!ALWAYS.includes(c)&&mass[c]<=1000);
+    const inel=set.filter(c=>!elig.includes(c));
+    if(elig.length){
+      valid.push({set:inel.concat(['DANGER']),un:false});
+      notes.push(`Two or more classes in small containers, so the DANGER placard can replace ${elig.map(c=>'class '+c).join(' and ')} (1,000 kg or less each)${inel.length?`. ${inel.map(c=>`Class ${c}`).join(' and ')} still need${inel.length===1?'s':''} ${inel.length===1?'its':'their'} own placard${inel.map(c=>ALWAYS.includes(c)?'':` (${fmt(mass[c])} kg, over 1,000 kg)`).join('')}`:''}.`);
+    }else notes.push('The DANGER placard can’t be used here: every class is either over 1,000 kg or a class that must always show its own placard.');
+  }
+  if(set.length)notes.push('UN numbers aren’t needed on the placards for these packaged, non-ERAP goods.');
+  return {valid,notes,mass,total};
+}
+const TILE_ORDER=['2.1','2.2','3','4.1','4.3','5.1','6.1','8','9','DANGER'];
+function renderTruck(sel,un,tankOverride){
+  const tank=tankOverride!==undefined?tankOverride:R.doc.tank;
+  const plac=sel.length?sel:[];
+  const ps=plac.map((c,i)=>{const x=(tank?140:150)+i*58;return `<g transform="translate(${x},${tank?58:60}) scale(.5)">${placardSVG(c,{un:un&&c!=='DANGER'?R.doc.lines[0].p.un:null}).replace('<svg ','<svg width="100" height="100" ')}</g>`;}).join('');
+  const body=tank
+    ?`<rect x="110" y="40" width="420" height="96" rx="46" fill="#cfd5db" stroke="#7d868f" stroke-width="2"/><rect x="120" y="134" width="400" height="8" fill="#6b737b"/>`
+    :`<rect x="110" y="22" width="430" height="120" rx="4" fill="#eef0f2" stroke="#7d868f" stroke-width="2"/><line x1="110" y1="132" x2="540" y2="132" stroke="#9aa3ab" stroke-width="2"/>`;
+  return `<svg viewBox="0 0 640 185" xmlns="http://www.w3.org/2000/svg" aria-label="Trailer side view">
+   <rect x="0" y="171" width="640" height="14" fill="#2a3440"/>
+   <g><rect x="8" y="58" width="90" height="84" rx="8" fill="#b5271e"/><rect x="20" y="66" width="44" height="32" rx="4" fill="#1c2a36"/><rect x="96" y="128" width="20" height="10" fill="#555"/></g>
+   ${body}
+   ${[44,150,180,470,500].map(x=>`<circle cx="${x}" cy="152" r="17" fill="#1a1a1a"/><circle cx="${x}" cy="152" r="7" fill="#9aa1a8"/>`).join('')}
+   ${ps}
+  </svg>`;
+}
+
+// ---------- side panel ----------
+function renderSide(){
+  const s=$('side');const st=R.step;
+  ['st1','st2','st3'].forEach((id,i)=>{$(id).className='st'+(i+1===st?' on':i+1<st?' done':'');});
+  if(st===1&&!R.checked){
+    const fl=Object.keys(R.flags);
+    s.innerHTML=`<h3>Check the shipping document</h3>
+     <p class="sub">Tap any part of the document that's missing something or is wrong, and pick the problem. A document can have no problems, or several.</p>
+     <div class="flags">${fl.length?fl.map((z,i)=>`<div class="flag"><span class="n">${i+1}</span><div>${esc(zoneTitle(z))}<small>${esc(R.flags[z]==='other'?OTHER_LABEL:ERR[R.flags[z]].label)}</small></div><button class="x" data-rm="${z}" aria-label="Remove flag">×</button></div>`).join(''):'<div class="empty">No problems flagged yet.</div>'}</div>
+     <div class="actions"><button class="btn primary" id="checkBtn">${fl.length?'Check my answers':'Document is correct'}</button></div>
+     <div class="legend"><span>Load: ${R.doc.tank?'highway tank':'53 ft dry van'}</span><span>${R.doc.lines.length} line${R.doc.lines.length>1?'s':''} of dangerous goods</span></div>`;
+    s.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{delete R.flags[b.dataset.rm];decorateZones();renderSide();});
+    $('checkBtn').onclick=()=>{gradeDoc();renderDoc();renderSide();updatePills();};
+  }else if(st===1){
+    s.innerHTML=`<h3>${R.errs.length?`${R.errs.length} problem${R.errs.length>1?'s':''} on this document`:'No problems on this document'}</h3>
+     <div class="scoreLine"><b>${R.docPts}</b><span>/ ${R.docMax} points</span></div>
+     <div class="legend"><span><i style="background:#1f9c50"></i>Found</span><span><i style="background:#c98510"></i>Right spot, wrong reason</span><span><i style="background:#2f6fc4"></i>Missed</span><span><i style="background:#d43b33"></i>Not a problem</span></div>
+     <div class="fb">${R.fb.map(x=>`<div class="fbi ${x.c}"><span class="ic">${x.ic}</span><div><b>${esc(x.t)}</b><span>${esc(x.s)}</span></div></div>`).join('')}</div>
+     <div class="actions"><button class="btn primary" id="toPl">Next: placards</button></div>`;
+    $('toPl').onclick=()=>{R.step=2;R.sel=[];R.un=false;R.ans=placardAnswer();renderSide();};
+  }else if(st===2&&!R.plDone){
+    const sel=R.sel;
+    const mass=R.ans.mass;
+    s.innerHTML=`<h3>Placard the ${R.doc.tank?'tank':'trailer'}</h3>
+     <p class="sub">Pick every placard this load needs, or pick “No placards required”. Use the corrected document: the goods are what the document should have said.</p>
+     <div class="loadInfo">${R.doc.tank?`<b>${fmt(R.doc.lines[0].qty)} L</b> of diesel fuel in a highway tank`:`<ul class="mlist">${R.doc.lines.map(l=>`<li><span>Class ${l.p.cls}${l.p.sub?` (${l.p.sub})`:''} · ${esc(l.p.name.split(' with ')[0].toLowerCase())}</span><b>${fmt(l.qty)} kg</b></li>`).join('')}<li><span>Total gross mass</span><b>${fmt(R.ans.total)} kg</b></li></ul>`}</div>
+     <div class="tiles">${TILE_ORDER.map(c=>`<button class="tile${sel.includes(c)?' on':''}" data-c="${c}" aria-pressed="${sel.includes(c)}">${placardSVG(c)}<span>${c==='DANGER'?'Danger':'Class '+c}</span></button>`).join('')}<button class="tile none${R.none?' on':''}" data-c="none" aria-pressed="${!!R.none}"><span>No placards required</span></button></div>
+     <label class="chk"><input type="checkbox" id="unChk" ${R.un?'checked':''}> Display the UN number on the placards</label>
+     <div class="truck">${renderTruck(sel,R.un)}</div>
+     <div class="actions"><button class="btn primary" id="plCheck" ${sel.length||R.none?'':'disabled'}>Check placards</button></div>`;
+    s.querySelectorAll('.tile').forEach(b=>b.onclick=()=>{const c=b.dataset.c;
+      if(c==='none'){R.none=!R.none;if(R.none){R.sel=[];R.un=false;}}
+      else{R.none=false;const i=R.sel.indexOf(c);if(i>=0)R.sel.splice(i,1);else R.sel.push(c);R.sel.sort((a,b)=>TILE_ORDER.indexOf(a)-TILE_ORDER.indexOf(b));}
+      renderSide();});
+    $('unChk').onchange=e=>{R.un=e.target.checked;if(R.un)R.none=false;renderSide();};
+    $('plCheck').onclick=()=>{
+      const mine=R.none?[]:R.sel.slice().sort();
+      R.plRight=R.ans.valid.some(v=>v.set.slice().sort().join()===mine.join()&&v.un===R.un);
+      R.plPts=R.plRight?1:0;R.plDone=true;renderSide();updatePills();};
+  }else if(st===2){
+    const v=R.ans.valid[0];
+    s.innerHTML=`<h3>${R.plRight?'Placards correct':'Not quite'}</h3>
+     <p class="sub">${R.plRight?'':'You picked: '+(R.none||!R.sel.length?'no placards':R.sel.map(c=>c==='DANGER'?'DANGER':'class '+c).join(', '))+(R.un?', with UN number':'')+'.'}</p>
+     <div class="truck">${renderTruck(v.set,v.un)}</div>
+     <div class="fb">${R.ans.valid.map((x,i)=>`<div class="fbi hit"><span class="ic">${i?'or':'✓'}</span><div><b>${x.set.length?x.set.map(c=>c==='DANGER'?'DANGER':'Class '+c).join(' + '):'No placards'}${x.un?' with UN number':''}</b></div></div>`).join('')}
+     ${R.ans.notes.map(n=>`<div class="fbi"><span class="ic" style="color:var(--amber)">•</span><div><span style="color:var(--text)">${esc(n)}</span></div></div>`).join('')}</div>
+     <div class="actions"><button class="btn primary" id="toQ">Next: rules check</button></div>`;
+    $('toQ').onclick=()=>{R.step=3;renderSide();};
+  }else if(st===3){
+    const q=R.quiz;if(!R.qOpts)R.qOpts=shuffle([q.a].concat(q.w));
+    s.innerHTML=`<h3>${esc(q.q)}</h3>
+     <div class="opts">${R.qOpts.map((o,i)=>{let c='';if(R.qDone){if(o===q.a)c=' right';else if(i===R.qPick)c=' wrong';}return `<button class="opt${c}" data-i="${i}" ${R.qDone?'disabled':''}>${esc(o)}</button>`;}).join('')}</div>
+     ${R.qDone?`<div class="fbi ${R.qRight?'hit':'false'}"><span class="ic">${R.qRight?'✓':'✕'}</span><div><b>${R.qRight?'Correct':'Not quite'}</b><span>${esc(q.why)}</span></div></div>
+     <div class="scoreLine"><b>${roundScore()}</b><span>/ 100 for this load</span></div>
+     <div class="actions"><button class="btn primary" id="nextLoad">${G.mode==='test'&&G.round>=TEST_LEN?'See results':'Next load'}</button></div>`:''}`;
+    s.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{if(R.qDone)return;R.qPick=+b.dataset.i;R.qRight=R.qOpts[R.qPick]===q.a;R.qPts=R.qRight?1:0;R.qDone=true;G.scores.push(roundScore());G.log.push(R);renderSide();updatePills();});
+    const nb=$('nextLoad');if(nb)nb.onclick=nextLoad;
+  }
+}
+function roundScore(){return Math.round(50*R.docPts/R.docMax+35*(R.plPts||0)+15*(R.qPts||0));}
+function updatePills(){
+  $('rNum').textContent=G.round;$('rOf').textContent=G.mode==='test'?` / ${TEST_LEN}`:'';
+  const avg=G.scores.length?Math.round(G.scores.reduce((a,b)=>a+b,0)/G.scores.length):0;
+  $('rScore').textContent=G.scores.length?avg:'–';
+}
+
+// ---------- flow ----------
+function start(mode){G={mode,round:0,scores:[],log:[],t0:Date.now()};show('game');nextLoad();}
+function nextLoad(){
+  if(G.mode==='test'&&G.round>=TEST_LEN)return endTest();
+  G.round++;R=makeRound();renderDoc();renderSide();updatePills();window.scrollTo(0,0);
+}
+function endTest(){
+  const avg=Math.round(G.scores.reduce((a,b)=>a+b,0)/G.scores.length);
+  const prev=bestGet();if(avg>prev)bestSet(avg);showBest();
+  $('endScore').textContent=avg;
+  $('endTitle').textContent=avg>=85?'Ready to roll':avg>=65?'Close, keep practising':'Back to the books';
+  const secs=Math.round((Date.now()-G.t0)/1000);$('endTime').textContent=`${Math.floor(secs/60)} min ${secs%60} s`+(avg>prev&&prev?' · new best':'');
+  $('endRounds').innerHTML=G.log.map((r,i)=>`<div class="rnd"><small>Load ${i+1}</small><b>${G.scores[i]}</b></div>`).join('');
+  const missed={};G.log.forEach(r=>r.errs.forEach(e=>{if(r.result[e.zone]!=='hit')missed[e.k]=(missed[e.k]||0)+1;}));
+  const plWrong=G.log.filter(r=>!r.plRight).length,qWrong=G.log.filter(r=>!r.qRight).length;
+  const notes=Object.entries(missed).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([k,n])=>({c:'miss',t:`Missed ${n}×: ${ERR[k].label}`}));
+  if(plWrong)notes.push({c:'false',t:`Placards wrong on ${plWrong} load${plWrong>1?'s':''}. Review the 500 kg rule, class 4.3 and the DANGER placard limits.`});
+  if(qWrong)notes.push({c:'false',t:`${qWrong} rules question${qWrong>1?'s':''} wrong.`});
+  if(!notes.length)notes.push({c:'hit',t:'Clean sweep. Every error found, every placard right.'});
+  $('endNotes').innerHTML=notes.map(n=>`<div class="fbi ${n.c}"><span class="ic">${n.c==='hit'?'✓':n.c==='miss'?'!':'✕'}</span><div><b>${esc(n.t)}</b></div></div>`).join('');
+  show('end');
+}
+$('practiceBtn').onclick=()=>start('practice');
+$('testBtn').onclick=()=>start('test');
+$('againBtn').onclick=()=>start('test');
+$('endHome').onclick=()=>{G=null;show('home');};
+$('homeBtn').onclick=()=>{G=null;show('home');};
+$('refBtn').onclick=()=>show('ref');
+$('refBack').onclick=()=>show('home');
+window.__dg={get R(){return R},ERR};
+})();
+</script>
+<script>if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}</script>
+</body>
+</html>
